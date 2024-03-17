@@ -370,34 +370,82 @@ function group(array, keySelector, valueSelector) {
  *
  *  For more examples see unit tests.
  */
+const SELECTOR_PARTS_ORDER = {
+  element: 1,
+  id: 2,
+  class: 3,
+  attr: 4,
+  pseudoClass: 5,
+  pseudoElement: 6,
+};
 
+const NOT_DUPLICATED = [
+  SELECTOR_PARTS_ORDER.element,
+  SELECTOR_PARTS_ORDER.id,
+  SELECTOR_PARTS_ORDER.pseudoElement,
+];
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  css: [],
+  currentOrder: 0,
+
+  collectCSS(value, selectorPartOrder) {
+    if (this.currentOrder > selectorPartOrder) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    if (
+      this.currentOrder === selectorPartOrder &&
+      NOT_DUPLICATED.includes(selectorPartOrder)
+    ) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
+
+    const obj = Object.create(this);
+    obj.currentOrder = selectorPartOrder;
+    obj.css = this.css.concat(value);
+
+    return obj;
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  element(value) {
+    return this.collectCSS(value, SELECTOR_PARTS_ORDER.element);
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    return this.collectCSS(`#${value}`, SELECTOR_PARTS_ORDER.id);
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    return this.collectCSS(`.${value}`, SELECTOR_PARTS_ORDER.class);
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    return this.collectCSS(`[${value}]`, SELECTOR_PARTS_ORDER.attr);
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(value) {
+    return this.collectCSS(`:${value}`, SELECTOR_PARTS_ORDER.pseudoClass);
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  pseudoElement(value) {
+    return this.collectCSS(`::${value}`, SELECTOR_PARTS_ORDER.pseudoElement);
+  },
+
+  combine(selector1, combinator, selector2) {
+    const obj = Object.create(this);
+    obj.css = this.css.concat(
+      ...selector1.css,
+      ` ${combinator} `,
+      ...selector2.css
+    );
+    return obj;
+  },
+
+  stringify() {
+    return this.css.join('');
   },
 };
 
